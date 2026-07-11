@@ -1,19 +1,23 @@
 package com.inari.musicstreamer.gui;
 
+import com.example.themedgui.client.ui.UiPalette;
+import com.example.themedgui.client.ui.UiSettings;
+import com.inari.musicstreamer.MusicStreamerMod;
+
 /**
  * MusicPlayerScreenで使う配色。
  *
- * 現状はデフォルト固定値。themedguimodの UiPalette と本格的に連携する場合は、
- * このクラスのstaticフィールドを themedguimod 側の色取得呼び出しに置き換える。
- * (themedguimod を compileOnly 依存に追加し、UiPalette の実際のフィールド名を
- *  確認してから直接参照するのが安全 — フィールド名が不明なままリフレクションで
- *  推測実装すると壊れやすいため、現時点では未接続にしている)
+ * themedguimod(mod id: "themedgui")がロードされている場合は、
+ * UiSettings.INSTANCE.getTheme().palette() から現在のテーマ配色を反映する。
+ * 未導入の場合は下記のデフォルト値のまま動作する。
+ *
+ * refresh() は MusicPlayerScreen#extractRenderState の先頭で毎フレーム呼ぶこと。
  */
 public final class ThemeColors {
     private ThemeColors() {
     }
 
-    // ARGB (0xAARRGGBB)
+    // ARGB (0xAARRGGBB) — themedguimod未導入時のデフォルト値
     public static int PANEL_BACKGROUND = 0xE0141824;
     public static int PANEL_BORDER = 0x50FFFFFF;
     public static int TEXT_PRIMARY = 0xFFFFFFFF;
@@ -26,6 +30,28 @@ public final class ThemeColors {
     public static int SPECTRUM_LOW = 0xFF4FE3D8;   // 低域(左側)
     public static int SPECTRUM_MID = 0xFFB7C77A;   // 中域
     public static int SPECTRUM_HIGH = 0xFFE38A4F;  // 高域(右側)
+
+    /**
+     * themedguimodが導入されていれば現在のテーマ配色を反映する。
+     * 未導入なら何もしない(デフォルト値のまま)。
+     */
+    public static void refresh() {
+        if (!MusicStreamerMod.THEMED_GUI_PRESENT) {
+            return;
+        }
+        UiPalette palette = UiSettings.INSTANCE.getTheme().palette();
+        PANEL_BACKGROUND = palette.panel();
+        PANEL_BORDER = palette.panelBorder();
+        TEXT_PRIMARY = palette.text();
+        TEXT_SECONDARY = palette.mutedText();
+        ACCENT_CYAN = palette.accent();
+        ACCENT_WHITE_GLOW = palette.text();
+        SEEK_TRACK = palette.field();
+        SEEK_FILLED = palette.accent();
+        SEEK_HANDLE = palette.text();
+        // スペクトラムバーの3色グラデーションは装飾的な要素が強いため、
+        // 汎用UIテーマの色にはあえて対応させず固定のままにしている。
+    }
 
     /** 3色のグラデーションを比率tで補間する(スペクトラムバー用) */
     public static int spectrumColorAt(float t) {

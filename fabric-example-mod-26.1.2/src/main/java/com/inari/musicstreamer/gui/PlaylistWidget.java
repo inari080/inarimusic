@@ -6,6 +6,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.network.chat.Component;
+import net.minecraft.client.input.MouseButtonEvent;
 
 import java.util.List;
 import java.util.function.IntConsumer;
@@ -81,9 +82,9 @@ public class PlaylistWidget extends AbstractWidget {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button != 0 || !isMouseOver(mouseX, mouseY)) return false;
-        int row = (int) ((mouseY - getY()) / ROW_HEIGHT);
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (event.button() != 0 || !isMouseOver(event.x(), event.y())) return false;
+        int row = (int) ((event.y() - getY()) / ROW_HEIGHT);
         int index = scrollOffsetRows + row;
         if (index >= 0 && index < tracks.size()) {
             selectedIndex = index;

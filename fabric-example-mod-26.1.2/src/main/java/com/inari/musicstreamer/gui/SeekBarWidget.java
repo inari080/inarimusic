@@ -4,6 +4,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.network.chat.Component;
+import net.minecraft.client.input.MouseButtonEvent;
 
 import java.util.function.DoubleConsumer;
 
@@ -55,27 +56,27 @@ public class SeekBarWidget extends AbstractWidget {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && isMouseOver(mouseX, mouseY)) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (event.button() == 0 && isMouseOver(event.x(), event.y())) {
             dragging = true;
-            updateFromMouse(mouseX);
+            updateFromMouse(event.x());
             return true;
         }
         return false;
     }
 
     @Override
-    protected void onDrag(double mouseX, double mouseY, double dragX, double dragY) {
+    protected void onDrag(MouseButtonEvent event, double dragX, double dragY) {
         if (dragging) {
-            updateFromMouse(mouseX);
+            updateFromMouse(event.x());
         }
     }
 
     @Override
-    public void onRelease(double mouseX, double mouseY) {
+    public void onRelease(MouseButtonEvent event) {
         if (dragging) {
             dragging = false;
-            updateFromMouse(mouseX);
+            updateFromMouse(event.x());
             onSeekRequested.accept(progress);
         }
     }

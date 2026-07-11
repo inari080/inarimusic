@@ -4,6 +4,8 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.network.chat.Component;
+import net.minecraft.client.input.MouseButtonEvent; // 追加
+
 
 import java.util.function.DoubleConsumer;
 
@@ -20,17 +22,16 @@ public class VolumeSliderWidget extends AbstractWidget {
 
     @Override
     protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-
         int x = getX();
         int y = getY();
         int w = getWidth();
         int h = getHeight();
         int trackY = y + h / 2;
 
-        graphics.hLine(x, x + w - 1, trackY, ThemeColors.SEEK_TRACK);
+        graphics.horizontalLine(x, x + w - 1, trackY, ThemeColors.SEEK_TRACK);
         int filledEndX = x + (int) (w * value);
         if (filledEndX > x) {
-            graphics.hLine(x, filledEndX, trackY, ThemeColors.ACCENT_CYAN);
+            graphics.horizontalLine(x, filledEndX, trackY, ThemeColors.ACCENT_CYAN);
         }
         int handleSize = 4;
         graphics.fill(filledEndX - handleSize / 2, trackY - handleSize / 2,
@@ -38,17 +39,17 @@ public class VolumeSliderWidget extends AbstractWidget {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && isMouseOver(mouseX, mouseY)) {
-            updateFromMouse(mouseX);
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (event.button() == 0 && isMouseOver(event.x(), event.y())) {
+            updateFromMouse(event.x());
             return true;
         }
         return false;
     }
 
     @Override
-    protected void onDrag(double mouseX, double mouseY, double dragX, double dragY) {
-        updateFromMouse(mouseX);
+    protected void onDrag(MouseButtonEvent event, double dragX, double dragY) {
+        updateFromMouse(event.x());
     }
 
     private void updateFromMouse(double mouseX) {

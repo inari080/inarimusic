@@ -9,19 +9,17 @@ group = project.maven_group
 
 repositories {
 	// themedguimodをローカルmodsフォルダから読む場合はflatDirを追加
-	// flatDir { dirs 'libs' }
+	flatDir { dirs 'libs' }
 }
 
 dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	// 26.1.2はMojang公式マッピングで配布されているためmappingsの指定行は不要(Yarn廃止)
 
-	// 26.1系以降はmodImplementation/modCompileOnlyではなく通常のimplementation/compileOnlyを使う
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-	// themedguimod をcompile-timeで参照したい場合(API呼び出し等)は
-	// compileOnly files('libs/themedguimod-x.y.z.jar')
+	// themedguimod をcompile-timeで参照(API呼び出しのため)
+	compileOnly files('libs/themedgui-1.0.0.jar')
 }
 
 processResources {

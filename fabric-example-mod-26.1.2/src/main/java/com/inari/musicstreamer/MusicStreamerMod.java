@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,22 +22,22 @@ public class MusicStreamerMod implements ClientModInitializer {
     public static YtDlpResolver resolver;
     public static AudioStreamEngine audioEngine;
 
-    // カテゴリ名を定数として定義（一括管理しやすくするため）
-    private static final String CATEGORY = "category.musicstreamer";
+    // カテゴリ定義(26.1以降、KeyMappingのカテゴリは文字列ではなくCategoryオブジェクト)
+    private static final KeyMapping.Category CATEGORY =
+            KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "category"));
 
     private static KeyMapping openScreenKey;
 
     @Override
     public void onInitializeClient() {
-        THEMED_GUI_PRESENT = FabricLoader.getInstance().isModLoaded("themedguimod");
-        LOGGER.info("themedguimod present: {}", THEMED_GUI_PRESENT);
+        THEMED_GUI_PRESENT = FabricLoader.getInstance().isModLoaded("themedgui");        LOGGER.info("themedguimod present: {}", THEMED_GUI_PRESENT);
 
         resolver = new YtDlpResolver("yt-dlp");
         audioEngine = new AudioStreamEngine(resolver, "ffmpeg");
         audioEngine.setOnError(msg -> LOGGER.warn("AudioStreamEngine error: {}", msg));
 
-        // 第4引数に定数 CATEGORY を指定
-        openScreenKey = KeyMappingHelper.registerKeyBinding(new KeyMapping(
+        // KeyMappingHelperのメソッド名も26.1でregisterKeyMappingに変更
+        openScreenKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.musicstreamer.open",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_M,

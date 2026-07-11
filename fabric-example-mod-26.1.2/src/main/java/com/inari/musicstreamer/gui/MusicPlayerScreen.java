@@ -138,20 +138,19 @@ public class MusicPlayerScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
 
+        ThemeColors.refresh(); // 追加: themedguimod導入時は現在のテーマ配色に更新
         int panelX = (this.width - PANEL_WIDTH) / 2;
         int panelY = (this.height - PANEL_HEIGHT) / 2;
 
         graphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + PANEL_HEIGHT, ThemeColors.PANEL_BACKGROUND);
         graphics.horizontalLine(panelX, panelX + PANEL_WIDTH - 1, panelY, ThemeColors.PANEL_BORDER);
-        graphics.horizontalLine(panelX, panelX + PANEL_WIDTH - 1, panelY, ThemeColors.PANEL_BORDER);
-        graphics.verticalLine(panelX, panelY, panelY + PANEL_HEIGHT - 1, ThemeColors.PANEL_BORDER);
         graphics.verticalLine(panelX, panelY, panelY + PANEL_HEIGHT - 1, ThemeColors.PANEL_BORDER);
 
         graphics.text(this.font, "Music Streamer", panelX + 12, panelY + 8, ThemeColors.TEXT_PRIMARY, false);
 
         TrackInfo current = engine.getCurrentTrack();
         String trackLabel = current != null ? current.title() : statusMessage;
-        graphics.text(this.font, "Music Streamer", panelX + 12, panelY + 8, ThemeColors.TEXT_PRIMARY, false);
+        graphics.text(this.font, trackLabel, panelX + 12, panelY + 44, ThemeColors.ACCENT_CYAN, false);
 
         int visualizerY = panelY + 54;
         int visualizerHeight = 90;
@@ -166,8 +165,8 @@ public class MusicPlayerScreen extends Screen {
         String posLabel = formatSeconds(position);
         String durLabel = duration > 0 ? formatSeconds(duration) : "--:--";
         int seekY = visualizerY + visualizerHeight + 10;
-        graphics.text(this.font, "Music Streamer", panelX + 12, panelY + 8, ThemeColors.TEXT_PRIMARY, false);
-        graphics.text(this.font, "Music Streamer", panelX + 12, panelY + 8, ThemeColors.TEXT_PRIMARY, false);
+        graphics.text(this.font, posLabel, panelX + 12, seekY - 10, ThemeColors.TEXT_SECONDARY, false);
+        graphics.text(this.font, durLabel, panelX + PANEL_WIDTH - 12 - this.font.width(durLabel), seekY - 10, ThemeColors.TEXT_SECONDARY, false);
 
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
