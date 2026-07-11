@@ -1,0 +1,40 @@
+plugins {
+	// 26.1.2は非obfuscatedのため remap を行わない新プラグインIDを使う(旧 'fabric-loom' ではない)
+	id 'net.fabricmc.fabric-loom' version '1.15.+'
+	id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+repositories {
+	// themedguimodをローカルmodsフォルダから読む場合はflatDirを追加
+	// flatDir { dirs 'libs' }
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	// 26.1.2はMojang公式マッピングで配布されているためmappingsの指定行は不要(Yarn廃止)
+
+	// 26.1系以降はmodImplementation/modCompileOnlyではなく通常のimplementation/compileOnlyを使う
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+	// themedguimod をcompile-timeで参照したい場合(API呼び出し等)は
+	// compileOnly files('libs/themedguimod-x.y.z.jar')
+}
+
+processResources {
+	inputs.property "version", project.version
+	filteringCharset "UTF-8"
+	filesMatching("fabric.mod.json") {
+		expand "version": project.version
+	}
+}
+
+java {
+	withSourcesJar()
+	// Minecraft 26.1系はGradle JVMにJava 25以上が必要
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
