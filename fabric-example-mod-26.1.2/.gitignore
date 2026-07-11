@@ -1,40 +1,28 @@
-# gradle
-
+# Gradle
 .gradle/
 build/
 out/
-classes/
 
-# eclipse
+# Loom / Minecraft dev environment
+run/
+.loom-cache/
 
-*.launch
-
-# idea
-
+# IDE
 .idea/
 *.iml
-*.ipr
-*.iws
-
-# vscode
-
-.settings/
 .vscode/
 bin/
 .classpath
 .project
+.settings/
 
-# macos
+# OS
+.DS_Store
+Thumbs.db
 
-*.DS_Store
+# Logs
+*.log
 
-# fabric
+# IDEA
+.idea/
 
-run/
-
-# java
-
-hs_err_*.log
-replay_*.log
-*.hprof
-*.jfr
