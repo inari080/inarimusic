@@ -17,11 +17,12 @@ public class MusicStreamerMod implements ClientModInitializer {
     public static final String MOD_ID = "musicstreamer";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-    /** themedguimod がロードされているか。GUI実装時にパレット取得の分岐に使う */
     public static boolean THEMED_GUI_PRESENT = false;
-
     public static YtDlpResolver resolver;
     public static AudioStreamEngine audioEngine;
+
+    // カテゴリ名を定数として定義（一括管理しやすくするため）
+    private static final String CATEGORY = "category.musicstreamer";
 
     private static KeyMapping openScreenKey;
 
@@ -30,17 +31,16 @@ public class MusicStreamerMod implements ClientModInitializer {
         THEMED_GUI_PRESENT = FabricLoader.getInstance().isModLoaded("themedguimod");
         LOGGER.info("themedguimod present: {}", THEMED_GUI_PRESENT);
 
-        // 実行環境のPATHにyt-dlp/ffmpegが無い場合はここを絶対パスに変更する
         resolver = new YtDlpResolver("yt-dlp");
         audioEngine = new AudioStreamEngine(resolver, "ffmpeg");
-
         audioEngine.setOnError(msg -> LOGGER.warn("AudioStreamEngine error: {}", msg));
 
+        // 第4引数に定数 CATEGORY を指定
         openScreenKey = KeyMappingHelper.registerKeyBinding(new KeyMapping(
                 "key.musicstreamer.open",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_M,
-                "category.musicstreamer"
+                CATEGORY
         ));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {

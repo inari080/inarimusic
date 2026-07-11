@@ -5,7 +5,7 @@ import com.inari.musicstreamer.audio.AudioStreamEngine;
 import com.inari.musicstreamer.audio.PlaybackState;
 import com.inari.musicstreamer.audio.TrackInfo;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -136,7 +136,7 @@ public class MusicPlayerScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
         this.renderBackground(graphics, mouseX, mouseY, partialTick);
 
         int panelX = (this.width - PANEL_WIDTH) / 2;
