@@ -136,23 +136,22 @@ public class MusicPlayerScreen extends Screen {
     }
 
     @Override
-    protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        this.renderBackground(graphics, mouseX, mouseY, partialTick);
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
 
         int panelX = (this.width - PANEL_WIDTH) / 2;
         int panelY = (this.height - PANEL_HEIGHT) / 2;
 
         graphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + PANEL_HEIGHT, ThemeColors.PANEL_BACKGROUND);
-        graphics.hLine(panelX, panelX + PANEL_WIDTH - 1, panelY, ThemeColors.PANEL_BORDER);
-        graphics.hLine(panelX, panelX + PANEL_WIDTH - 1, panelY + PANEL_HEIGHT - 1, ThemeColors.PANEL_BORDER);
-        graphics.vLine(panelX, panelY, panelY + PANEL_HEIGHT - 1, ThemeColors.PANEL_BORDER);
-        graphics.vLine(panelX + PANEL_WIDTH - 1, panelY, panelY + PANEL_HEIGHT - 1, ThemeColors.PANEL_BORDER);
+        graphics.horizontalLine(panelX, panelX + PANEL_WIDTH - 1, panelY, ThemeColors.PANEL_BORDER);
+        graphics.horizontalLine(panelX, panelX + PANEL_WIDTH - 1, panelY, ThemeColors.PANEL_BORDER);
+        graphics.verticalLine(panelX, panelY, panelY + PANEL_HEIGHT - 1, ThemeColors.PANEL_BORDER);
+        graphics.verticalLine(panelX, panelY, panelY + PANEL_HEIGHT - 1, ThemeColors.PANEL_BORDER);
 
-        graphics.drawString(this.font, "Music Streamer", panelX + 12, panelY + 8, ThemeColors.TEXT_PRIMARY, false);
+        graphics.text(this.font, "Music Streamer", panelX + 12, panelY + 8, ThemeColors.TEXT_PRIMARY, false);
 
         TrackInfo current = engine.getCurrentTrack();
         String trackLabel = current != null ? current.title() : statusMessage;
-        graphics.drawString(this.font, trackLabel, panelX + 12, panelY + 44, ThemeColors.ACCENT_CYAN, false);
+        graphics.text(this.font, "Music Streamer", panelX + 12, panelY + 8, ThemeColors.TEXT_PRIMARY, false);
 
         int visualizerY = panelY + 54;
         int visualizerHeight = 90;
@@ -167,10 +166,10 @@ public class MusicPlayerScreen extends Screen {
         String posLabel = formatSeconds(position);
         String durLabel = duration > 0 ? formatSeconds(duration) : "--:--";
         int seekY = visualizerY + visualizerHeight + 10;
-        graphics.drawString(this.font, posLabel, panelX + 12, seekY - 10, ThemeColors.TEXT_SECONDARY, false);
-        graphics.drawString(this.font, durLabel, panelX + PANEL_WIDTH - 12 - this.font.width(durLabel), seekY - 10, ThemeColors.TEXT_SECONDARY, false);
+        graphics.text(this.font, "Music Streamer", panelX + 12, panelY + 8, ThemeColors.TEXT_PRIMARY, false);
+        graphics.text(this.font, "Music Streamer", panelX + 12, panelY + 8, ThemeColors.TEXT_PRIMARY, false);
 
-        super.render(graphics, mouseX, mouseY, partialTick);
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
 
     private static String formatSeconds(double totalSeconds) {

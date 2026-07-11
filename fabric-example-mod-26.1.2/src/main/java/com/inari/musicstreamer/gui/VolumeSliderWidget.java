@@ -19,7 +19,8 @@ public class VolumeSliderWidget extends AbstractWidget {
     }
 
     @Override
-    protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+
         int x = getX();
         int y = getY();
         int w = getWidth();

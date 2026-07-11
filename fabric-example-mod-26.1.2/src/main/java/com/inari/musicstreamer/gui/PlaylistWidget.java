@@ -63,7 +63,7 @@ public class PlaylistWidget extends AbstractWidget {
 
             TrackInfo track = tracks.get(index);
             int color = selected ? ThemeColors.ACCENT_CYAN : ThemeColors.TEXT_PRIMARY;
-            graphics.drawString(font, trimToWidth(track.title(), w - 6), x + 3, rowY + 2, color, false);
+            graphics.text(font, trimToWidth(track.title(), w - 6), x + 3, rowY + 2, color, false);
         }
 
         graphics.disableScissor();

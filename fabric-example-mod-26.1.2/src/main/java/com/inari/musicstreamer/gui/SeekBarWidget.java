@@ -33,18 +33,19 @@ public class SeekBarWidget extends AbstractWidget {
     }
 
     @Override
-    protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+
         int x = getX();
         int y = getY();
         int w = getWidth();
         int h = getHeight();
         int trackY = y + h / 2;
 
-        graphics.hLine(x, x + w - 1, trackY, ThemeColors.SEEK_TRACK);
+        graphics.horizontalLine(x, x + w - 1, trackY, ThemeColors.SEEK_TRACK);
 
         int filledEndX = x + (int) (w * progress);
         if (filledEndX > x) {
-            graphics.hLine(x, filledEndX, trackY, ThemeColors.SEEK_FILLED);
+            graphics.horizontalLine(x, x + w - 1, trackY, ThemeColors.SEEK_TRACK);
         }
 
         int handleX = filledEndX;

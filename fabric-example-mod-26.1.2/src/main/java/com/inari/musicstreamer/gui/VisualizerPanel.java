@@ -1,7 +1,8 @@
 package com.inari.musicstreamer.gui;
 
 import com.inari.musicstreamer.util.SimpleFFT;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor; // GuiGraphicsから変更
+
 
 /**
  * AudioStreamEngine#getVisualSnapshot() が返す生PCM(short, LRインターリーブ)から
@@ -19,7 +20,7 @@ public final class VisualizerPanel {
      * @param x,y,width,height 描画領域。上半分に波形バー、下半分にスペクトラムバーを描く
      * @param pcmSnapshot AudioStreamEngine#getVisualSnapshot() の戻り値
      */
-    public static void render(GuiGraphics graphics, int x, int y, int width, int height, short[] pcmSnapshot) {
+    public static void render(GuiGraphicsExtractor graphics, int x, int y, int width, int height, short[] pcmSnapshot) {
         float[] mono = downmixToMono(pcmSnapshot);
 
         int waveformHeight = height / 2;
@@ -43,7 +44,7 @@ public final class VisualizerPanel {
         return mono;
     }
 
-    private static void renderWaveformBars(GuiGraphics graphics, int x, int y, int width, int height, float[] mono) {
+    private static void renderWaveformBars(GuiGraphicsExtractor graphics, int x, int y, int width, int height, float[] mono) {
         int barCount = Math.max(8, width / 3);
         int samplesPerBar = Math.max(1, mono.length / barCount);
         int centerY = y + height / 2;
@@ -63,7 +64,7 @@ public final class VisualizerPanel {
         }
     }
 
-    private static void renderSpectrumBars(GuiGraphics graphics, int x, int y, int width, int height, float[] bars) {
+    private static void renderSpectrumBars(GuiGraphicsExtractor graphics, int x, int y, int width, int height, float[] bars) {
         int barCount = bars.length;
         int bottom = y + height;
         for (int b = 0; b < barCount; b++) {
