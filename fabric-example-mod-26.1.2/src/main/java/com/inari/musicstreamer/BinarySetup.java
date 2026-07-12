@@ -3,6 +3,8 @@ package com.inari.musicstreamer;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -10,22 +12,19 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.function.IntConsumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-/**
- * yt-dlp / ffmpeg をユーザーが手動インストールしなくて済むように、
- * 公式配布元から実行ファイルを自動ダウンロードするユーティリティ。
- * 保存先: .minecraft/config/musicstreamer/bin/
- */
 public final class BinarySetup {
     private static final Path BIN_DIR =
             FabricLoader.getInstance().getConfigDir().resolve("musicstreamer/bin");
 
+    private static final String BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
+
     private static final HttpClient CLIENT = HttpClient.newBuilder()
-            .followRedirects(HttpClient.Redirect.NORMAL) // GitHubのlatest/downloadはリダイレクトするため必須
+            .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
 
     public static boolean isWindows() {
@@ -42,64 +41,20 @@ public final class BinarySetup {
         return "yt-dlp";
     }
 
-    /** 現在設定されているパスで yt-dlp が実際に動くか確認する */
-    public static boolean isYtDlpWorking(String path) {
-        return commandWorks(List.of(path, "--version"));
-    }
-
-    /** 現在設定されているパスで ffmpeg が実際に動くか確認する */
-    public static boolean isFfmpegWorking(String path) {
-        return commandWorks(List.of(path, "-version"));
-    }
-
-    private static boolean commandWorks(List<String> command) {
-        if (command.get(0) == null || command.get(0).isBlank()) {
-            return false;
-        }
-        try {
-            ProcessBuilder pb = new ProcessBuilder(command);
-            pb.redirectErrorStream(true);
-            Process process = pb.start();
-            try (var in = process.getInputStream()) {
-                in.readAllBytes();
-            }
-            boolean finished = process.waitFor(5, TimeUnit.SECONDS);
-            if (!finished) {
-                process.destroyForcibly();
-                return false;
-            }
-            return process.exitValue() == 0;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /** yt-dlpの実行ファイルをダウンロードし、保存先の絶対パスを返す(全OS対応)。 */
-    public static String downloadYtDlp() throws IOException, InterruptedException {
+    /** @param onProgress 0〜100の進捗パーセントを受け取るコールバック(不要ならnull可) */
+    public static String downloadYtDlp(IntConsumer onProgress) throws IOException, InterruptedException {
         Files.createDirectories(BIN_DIR);
         String asset = ytDlpAssetName();
         Path dest = BIN_DIR.resolve(asset);
-        downloadFile("https://github.com/yt-dlp/yt-dlp/releases/latest/download/" + asset, dest);
+        downloadFile("https://github.com/yt-dlp/yt-dlp/releases/latest/download/" + asset, dest, onProgress);
         dest.toFile().setExecutable(true);
         return dest.toAbsolutePath().toString();
     }
 
-    /** 各OSに合わせたffmpegの自動セットアップ。保存先の絶対パスを返す。 */
-    public static String downloadFfmpeg() throws IOException, InterruptedException {
-        if (isWindows()) {
-            return downloadFfmpegWindows();
-        } else if (isMac()) {
-            return downloadFfmpegMac();
-        } else {
-            return downloadFfmpegLinux();
-        }
-    }
-
-    /** ffmpeg (Windows専用、静的ビルドzipを展開してffmpeg.exeを取り出す)。 */
-    public static String downloadFfmpegWindows() throws IOException, InterruptedException {
+    public static String downloadFfmpegWindows(IntConsumer onProgress) throws IOException, InterruptedException {
         Files.createDirectories(BIN_DIR);
         Path zipPath = BIN_DIR.resolve("ffmpeg-essentials.zip");
-        downloadFile("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip", zipPath);
+        downloadFile("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip", zipPath, onProgress);
 
         Path exeDest = BIN_DIR.resolve("ffmpeg.exe");
         boolean found = false;
@@ -115,7 +70,7 @@ public final class BinarySetup {
                 }
             }
         } finally {
-            Files.deleteIfExists(zipPath); // 成功・失敗・例外いずれでも必ずzipを削除する
+            Files.deleteIfExists(zipPath);
         }
         if (!found) {
             throw new IOException("zip内にffmpeg.exeが見つかりませんでした(配布元の構成が変わった可能性があります)");
@@ -123,83 +78,69 @@ public final class BinarySetup {
         return exeDest.toAbsolutePath().toString();
     }
 
-    /** ffmpeg (Mac専用、Evermeetの提供する信頼性の高い静的ビルドzipを展開)。 */
-    private static String downloadFfmpegMac() throws IOException, InterruptedException {
-        Files.createDirectories(BIN_DIR);
-        Path zipPath = BIN_DIR.resolve("ffmpeg-mac.zip");
-        // Evermeet.cxの最新安定版URL
-        downloadFile("https://evermeet.cx", zipPath);
+    public static boolean isYtDlpWorking(String path) {
+        return commandWorks(java.util.List.of(path, "--version"));
+    }
 
-        Path dest = BIN_DIR.resolve("ffmpeg");
-        boolean found = false;
-        try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(zipPath))) {
-            ZipEntry entry;
-            while ((entry = zis.getNextEntry()) != null) {
-                // zip直下にそのまま ffmpeg が入っている
-                if (entry.getName().equals("ffmpeg")) {
-                    Files.copy(zis, dest, StandardCopyOption.REPLACE_EXISTING);
-                    found = true;
-                    break;
+    public static boolean isFfmpegWorking(String path) {
+        return commandWorks(java.util.List.of(path, "-version"));
+    }
+
+    private static boolean commandWorks(java.util.List<String> command) {
+        if (command.get(0) == null || command.get(0).isBlank()) {
+            return false;
+        }
+        try {
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+            try (InputStream in = process.getInputStream()) {
+                in.readAllBytes();
+            }
+            boolean finished = process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                return false;
+            }
+            return process.exitValue() == 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** ストリームで読みながらファイルに書き込み、受信バイト数から進捗%を計算してコールバックする */
+    private static void downloadFile(String url, Path dest, IntConsumer onProgress)
+            throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                .header("User-Agent", BROWSER_UA)
+                .GET()
+                .build();
+        HttpResponse<InputStream> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofInputStream());
+        if (response.statusCode() / 100 != 2) {
+            throw new IOException("ダウンロード失敗 (HTTP " + response.statusCode() + "): " + url);
+        }
+
+        long total = response.headers().firstValueAsLong("Content-Length").orElse(-1);
+        long downloaded = 0;
+        int lastPercent = -1;
+
+        try (InputStream in = response.body();
+             OutputStream out = Files.newOutputStream(dest)) {
+            byte[] buffer = new byte[16384];
+            int read;
+            while ((read = in.read(buffer)) != -1) {
+                out.write(buffer, 0, read);
+                downloaded += read;
+                if (total > 0 && onProgress != null) {
+                    int percent = (int) (downloaded * 100 / total);
+                    if (percent != lastPercent) {
+                        lastPercent = percent;
+                        onProgress.accept(percent);
+                    }
                 }
             }
         }
-        Files.deleteIfExists(zipPath);
-        if (!found) {
-            throw new IOException("zip内にffmpegバイナリが見つかりませんでした。");
-        }
-        dest.toFile().setExecutable(true);
-        return dest.toAbsolutePath().toString();
-    }
 
-    /** ffmpeg (Linux専用、johnvansickleの静的ビルド.tar.xzからOSのtarコマンドを使って展開)。 */
-    private static String downloadFfmpegLinux() throws IOException, InterruptedException {
-        Files.createDirectories(BIN_DIR);
-        Path tarXzPath = BIN_DIR.resolve("ffmpeg-linux.tar.xz");
-        // 汎用性の高いx86_64用静的ビルド
-        downloadFile("https://johnvansickle.com", tarXzPath);
-
-        Path dest = BIN_DIR.resolve("ffmpeg");
-
-        // Java標準機能では .tar.xz の解凍が難しいため、Linux環境に必ずある OSの `tar` コマンドを利用
-        try {
-            ProcessBuilder pb = new ProcessBuilder(
-                    "tar", "-xJf", tarXzPath.toString(),
-                    "-C", BIN_DIR.toString(),
-                    "--wildcards", "*/ffmpeg",
-                    "--strip-components", "1"
-            );
-            Process process = pb.start();
-            boolean finished = process.waitFor(15, TimeUnit.SECONDS);
-            if (!finished || process.exitValue() != 0) {
-                throw new IOException("tarコマンドによる展開に失敗しました。");
-            }
-        } catch (Exception e) {
-            Files.deleteIfExists(tarXzPath);
-            throw new IOException("Linux環境でのffmpeg展開に失敗しました: " + e.getMessage(), e);
-        }
-
-        Files.deleteIfExists(tarXzPath);
-
-        if (!Files.exists(dest)) {
-            throw new IOException("アーカイブ内にffmpegバイナリが見つかりませんでした。");
-        }
-
-        dest.toFile().setExecutable(true);
-        return dest.toAbsolutePath().toString();
-    }
-
-    private static void downloadFile(String url, Path dest) throws IOException, InterruptedException {
-        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                // ブラウザからのアクセスに見せかけないと、gyan.dev等が直リンクを拒否することがある
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                        + "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
-                .GET()
-                .build();
-        HttpResponse<Path> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofFile(dest));
-        if (response.statusCode() / 100 != 2) {
-            Files.deleteIfExists(dest);
-            throw new IOException("ダウンロード失敗 (HTTP " + response.statusCode() + "): " + url);
-        }
         long size = Files.size(dest);
         if (size < 1_000_000) { // 1MB未満はエラーページ等の誤取得とみなす
             Files.deleteIfExists(dest);

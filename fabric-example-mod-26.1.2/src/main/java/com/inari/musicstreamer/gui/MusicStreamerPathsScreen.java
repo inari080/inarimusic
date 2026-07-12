@@ -67,6 +67,8 @@ public class MusicStreamerPathsScreen extends Screen {
         String currentYtDlp = ytDlpBox.getValue().trim();
         String currentFfmpeg = ffmpegBox.getValue().trim();
 
+        sendChat("Music Streamer: 自動セットアップを開始します...");
+
         Thread thread = new Thread(() -> {
             String ytDlpResult = null;
             String ffmpegResult = null;
@@ -74,26 +76,32 @@ public class MusicStreamerPathsScreen extends Screen {
             boolean ytDlpSkipped = false;
             boolean ffmpegSkipped = false;
 
-            // 1. yt-dlp の検証とダウンロード
             if (BinarySetup.isYtDlpWorking(currentYtDlp)) {
                 ytDlpSkipped = true;
             } else {
                 try {
-                    ytDlpResult = BinarySetup.downloadYtDlp();
+                    sendChat("yt-dlpをダウンロード中...");
+                    ytDlpResult = BinarySetup.downloadYtDlp(percent ->
+                            postProgress("yt-dlp", percent));
+                    sendChat("yt-dlpのダウンロードが完了しました");
                 } catch (Exception e) {
                     error = "yt-dlpのダウンロード失敗: " + e.getMessage();
+                    sendChat(error);
                 }
             }
 
-            // 2. ffmpeg の検証とダウンロード (全OS対応)
-            if (error == null) {
+            if (error == null && BinarySetup.isWindows()) {
                 if (BinarySetup.isFfmpegWorking(currentFfmpeg)) {
                     ffmpegSkipped = true;
                 } else {
                     try {
-                        ffmpegResult = BinarySetup.downloadFfmpeg(); // 統合されたメソッドを呼び出し
+                        sendChat("ffmpegをダウンロード中...");
+                        ffmpegResult = BinarySetup.downloadFfmpegWindows(percent ->
+                                postProgress("ffmpeg", percent));
+                        sendChat("ffmpegのダウンロードが完了しました");
                     } catch (Exception e) {
                         error = "ffmpegのダウンロード失敗: " + e.getMessage();
+                        sendChat(error);
                     }
                 }
             }
@@ -108,7 +116,6 @@ public class MusicStreamerPathsScreen extends Screen {
                 if (finalYtDlp != null) ytDlpBox.setValue(finalYtDlp);
                 if (finalFfmpeg != null) ffmpegBox.setValue(finalFfmpeg);
 
-                // 成功した分だけ、その場でconfigに保存して反映する(片方失敗しても、成功した方は失われない)
                 MusicStreamerConfig config = MusicStreamerMod.config;
                 config.ytDlpPath = ytDlpBox.getValue().trim();
                 config.ffmpegPath = ffmpegBox.getValue().trim();
@@ -119,6 +126,7 @@ public class MusicStreamerPathsScreen extends Screen {
                     statusText = finalError;
                 } else if (finalYtDlpSkipped && (finalFfmpegSkipped || !BinarySetup.isWindows())) {
                     statusText = "既に両方とも利用可能です。変更はありません";
+                    sendChat("Music Streamer: 既に両方とも利用可能です");
                 } else {
                     StringBuilder sb = new StringBuilder("完了しました。");
                     sb.append(finalYtDlpSkipped ? "yt-dlp: 既存を利用 / " : "yt-dlp: 新規取得 / ");
@@ -128,11 +136,36 @@ public class MusicStreamerPathsScreen extends Screen {
                         sb.append("ffmpeg: 手動インストールが必要です");
                     }
                     statusText = sb.toString();
+                    sendChat("Music Streamer: セットアップ完了 (" + statusText.replace("完了しました。", "") + ")");
                 }
             });
         }, "musicstreamer-binary-setup");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    // 10%刻みでのみチャットに出す(1%ごとだとスパムになるため)
+    private int lastPostedYtDlpPercent = -1;
+    private int lastPostedFfmpegPercent = -1;
+
+    private void postProgress(String label, int percent) {
+        int rounded = (percent / 10) * 10;
+        boolean isYtDlp = label.equals("yt-dlp");
+        int last = isYtDlp ? lastPostedYtDlpPercent : lastPostedFfmpegPercent;
+        if (rounded == last) return;
+        if (isYtDlp) lastPostedYtDlpPercent = rounded; else lastPostedFfmpegPercent = rounded;
+
+        Minecraft.getInstance().execute(() -> {
+            statusText = label + " ダウンロード中... " + percent + "%";
+            sendChat(label + ": " + rounded + "%");
+        });
+    }
+
+    private void sendChat(String message) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player != null) {
+            client.player.sendSystemMessage(Component.literal("[Music Streamer] " + message));
+        }
     }
 
     private void applyConfig(MusicStreamerConfig config) {
