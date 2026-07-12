@@ -24,6 +24,7 @@ public class YtDlpResolver {
 
     /** yt-dlp実行ファイル名。環境によって "yt-dlp" or "yt-dlp.exe" フルパス指定に変更可 */
     private final String ytDlpExecutable;
+    private final PlaylistCache cache;
 
     public YtDlpResolver() {
         this("yt-dlp");
@@ -31,6 +32,7 @@ public class YtDlpResolver {
 
     public YtDlpResolver(String ytDlpExecutable) {
         this.ytDlpExecutable = ytDlpExecutable;
+        this.cache = new PlaylistCache();
     }
 
     /**
@@ -39,8 +41,16 @@ public class YtDlpResolver {
      * 単曲URLを渡した場合は要素数1のリストが返る。
      */
     public List<TrackInfo> resolvePlaylist(String playlistUrl) throws IOException, InterruptedException {
+        // キャッシュチェック
+        List<TrackInfo> cached = cache.get(playlistUrl);
+        if (cached != null) {
+            LOGGER.info("Loaded {} tracks from cache for {}", cached.size(), playlistUrl);
+            return cached;
+        }
+
         List<String> lines = runAndCaptureLines(List.of(
                 ytDlpExecutable,
+                "--encoding", "utf-8",
                 "--flat-playlist",
                 "--print", "%(id)s;;%(title)s",
                 playlistUrl
@@ -57,6 +67,10 @@ public class YtDlpResolver {
             }
         }
         LOGGER.info("Resolved {} tracks from {}", tracks.size(), playlistUrl);
+
+        // キャッシュに保存
+        cache.put(playlistUrl, tracks);
+
         return tracks;
     }
 
@@ -67,6 +81,7 @@ public class YtDlpResolver {
     public String resolveAudioStreamUrl(String videoUrl) throws IOException, InterruptedException {
         List<String> lines = runAndCaptureLines(List.of(
                 ytDlpExecutable,
+                "--encoding", "utf-8",
                 "-f", "bestaudio",
                 "-g",
                 videoUrl
@@ -82,6 +97,7 @@ public class YtDlpResolver {
     public TrackInfo resolveTrackMeta(String videoUrl, String videoId) throws IOException, InterruptedException {
         List<String> lines = runAndCaptureLines(List.of(
                 ytDlpExecutable,
+                "--encoding", "utf-8",
                 "--print", "%(title)s;;%(duration)s",
                 videoUrl
         ), 20);
@@ -105,7 +121,9 @@ public class YtDlpResolver {
 
     private List<String> runAndCaptureLines(List<String> command, int timeoutSeconds) throws IOException, InterruptedException {
         ProcessBuilder pb = new ProcessBuilder(command);
-        pb.redirectErrorStream(false); // stderrは進捗ログ等が混ざるので分離
+        pb.redirectErrorStream(false);
+        pb.environment().put("PYTHONIOENCODING", "utf-8"); // yt-dlp(Python)側の出力エンコードをUTF-8に固定
+        pb.environment().put("PYTHONUTF8", "1"); // WindowsでPythonのUTF-8モードを強制
         Process process = pb.start();
 
         List<String> outLines = new ArrayList<>();

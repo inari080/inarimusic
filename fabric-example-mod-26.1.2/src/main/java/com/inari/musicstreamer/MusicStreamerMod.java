@@ -3,6 +3,7 @@ package com.inari.musicstreamer;
 import com.inari.musicstreamer.audio.AudioStreamEngine;
 import com.inari.musicstreamer.audio.YtDlpResolver;
 import com.inari.musicstreamer.gui.MusicPlayerScreen;
+import com.inari.musicstreamer.playlist.PlaylistManager;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -29,6 +30,7 @@ public class MusicStreamerMod implements ClientModInitializer {
     public static KeyMapping openScreenKey;
 
     public static MusicStreamerConfig config;
+    public static PlaylistManager playlistManager;
 
     @Override
     public void onInitializeClient() {
@@ -36,6 +38,7 @@ public class MusicStreamerMod implements ClientModInitializer {
         LOGGER.info("themedgui present: {}", THEMED_GUI_PRESENT);
 
         config = MusicStreamerConfig.load();
+        playlistManager = new PlaylistManager();
 
         resolver = new YtDlpResolver(config.ytDlpPath);
         audioEngine = new AudioStreamEngine(resolver, config.ffmpegPath);

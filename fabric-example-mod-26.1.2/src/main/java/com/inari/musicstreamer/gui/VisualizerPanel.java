@@ -12,25 +12,30 @@ import net.minecraft.client.gui.GuiGraphicsExtractor; // GuiGraphicsから変更
  */
 public final class VisualizerPanel {
     private static final int MONO_SAMPLES = 2048; // 2048 = 2^11、FFTに使う長さ
+    private static final int FFT_SKIP_FRAMES = 3; // FFT計算をスキップするフレーム数（FPS改善用）
+    private static int frameCounter = 0;
+    private static float[] cachedBars = null;
+    private static float[] cachedMono = null;
 
     private VisualizerPanel() {
     }
 
     /**
-     * @param x,y,width,height 描画領域。上半分に波形バー、下半分にスペクトラムバーを描く
+     * @param x,y,width,height 描画領域。中央対称のスペクトラムバーを描く
      * @param pcmSnapshot AudioStreamEngine#getVisualSnapshot() の戻り値
      */
     public static void render(GuiGraphicsExtractor graphics, int x, int y, int width, int height, short[] pcmSnapshot) {
         float[] mono = downmixToMono(pcmSnapshot);
 
-        int waveformHeight = height / 2;
-        renderWaveformBars(graphics, x, y, width, waveformHeight, mono);
+        // FFT計算をスキップしてFPS改善（数フレームに1回のみ計算）
+        frameCounter++;
+        if (frameCounter % FFT_SKIP_FRAMES == 0 || cachedBars == null) {
+            float[] magnitude = SimpleFFT.magnitude(mono);
+            cachedBars = SimpleFFT.toBars(magnitude, Math.max(16, width / 4)); // バー数を増やして滑らかに
+            cachedMono = mono.clone();
+        }
 
-        int spectrumY = y + waveformHeight;
-        int spectrumHeight = height - waveformHeight;
-        float[] magnitude = SimpleFFT.magnitude(mono);
-        float[] bars = SimpleFFT.toBars(magnitude, Math.max(8, width / 8));
-        renderSpectrumBars(graphics, x, spectrumY, width, spectrumHeight, bars);
+        renderMirroredSpectrumBars(graphics, x, y, width, height, cachedBars);
     }
 
     private static float[] downmixToMono(short[] interleavedStereo) {
@@ -44,35 +49,56 @@ public final class VisualizerPanel {
         return mono;
     }
 
-    private static void renderWaveformBars(GuiGraphicsExtractor graphics, int x, int y, int width, int height, float[] mono) {
-        int barCount = Math.max(8, width / 3);
-        int samplesPerBar = Math.max(1, mono.length / barCount);
-        int centerY = y + height / 2;
+    /**
+     * 中央対称のスペクトラムバーを描画（モダンな見た目）
+     */
+    private static void renderMirroredSpectrumBars(GuiGraphicsExtractor graphics, int x, int y, int width, int height, float[] bars) {
+        int barCount = bars.length;
+        int centerX = x + width / 2;
+        int bottom = y + height;
 
         for (int b = 0; b < barCount; b++) {
-            float peak = 0f;
-            int start = b * samplesPerBar;
-            int end = Math.min(mono.length, start + samplesPerBar);
-            for (int i = start; i < end; i++) {
-                peak = Math.max(peak, Math.abs(mono[i]));
-            }
-            int barHeight = (int) (peak * (height / 2f));
-            int barX = x + b * width / barCount;
-            int barW = Math.max(1, width / barCount - 1);
-            int color = ThemeColors.spectrumColorAt(b / (float) barCount);
-            graphics.fill(barX, centerY - barHeight, barX + barW, centerY + barHeight, color);
+            float value = bars[b];
+            int barHeight = (int) (value * height * 0.9f); // 高さを90%にして余白を作る
+            int barWidth = Math.max(2, width / (barCount * 2));
+
+            // グラデーションカラー（低域は青、高域は赤）
+            float hue = 0.6f - (b / (float) barCount) * 0.6f; // 青(0.6)から赤(0.0)
+            int color = hsvToRgb(hue, 1.0f, 1.0f);
+
+            // 左側（中央から左へ）
+            int leftX = centerX - (b + 1) * barWidth - 1;
+            graphics.fill(leftX, bottom - barHeight, leftX + barWidth, bottom, color);
+
+            // 右側（中央から右へ）
+            int rightX = centerX + b * barWidth + 1;
+            graphics.fill(rightX, bottom - barHeight, rightX + barWidth, bottom, color);
         }
+
+        // 中央の基準線
+        graphics.fill(centerX - 1, y, centerX + 1, bottom, 0xFFFFFFFF);
     }
 
-    private static void renderSpectrumBars(GuiGraphicsExtractor graphics, int x, int y, int width, int height, float[] bars) {
-        int barCount = bars.length;
-        int bottom = y + height;
-        for (int b = 0; b < barCount; b++) {
-            int barHeight = (int) (bars[b] * height);
-            int barX = x + b * width / barCount;
-            int barW = Math.max(1, width / barCount - 1);
-            int color = ThemeColors.spectrumColorAt(b / (float) barCount);
-            graphics.fill(barX, bottom - barHeight, barX + barW, bottom, color);
+    /**
+     * HSVからRGB色に変換
+     */
+    private static int hsvToRgb(float h, float s, float v) {
+        int i = (int) (h * 6);
+        float f = h * 6 - i;
+        float p = v * (1 - s);
+        float q = v * (1 - f * s);
+        float t = v * (1 - (1 - f) * s);
+
+        float r, g, b;
+        switch (i % 6) {
+            case 0: r = v; g = t; b = p; break;
+            case 1: r = q; g = v; b = p; break;
+            case 2: r = p; g = v; b = t; break;
+            case 3: r = p; g = q; b = v; break;
+            case 4: r = t; g = p; b = v; break;
+            default: r = v; g = p; b = q; break;
         }
+
+        return ((int) (r * 255) << 16) | ((int) (g * 255) << 8) | (int) (b * 255);
     }
 }

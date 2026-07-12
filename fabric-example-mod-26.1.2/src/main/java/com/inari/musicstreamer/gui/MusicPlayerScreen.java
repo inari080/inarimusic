@@ -4,6 +4,7 @@ import com.inari.musicstreamer.MusicStreamerMod;
 import com.inari.musicstreamer.audio.AudioStreamEngine;
 import com.inari.musicstreamer.audio.PlaybackState;
 import com.inari.musicstreamer.audio.TrackInfo;
+import com.inari.musicstreamer.playlist.SavedUrl;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -11,6 +12,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -35,6 +37,8 @@ public class MusicPlayerScreen extends Screen {
 
     private List<TrackInfo> currentPlaylist = List.of();
     private String statusMessage = "";
+    private String pendingUrl = null;
+    private List<SavedUrl> pendingSavedUrls = null;
 
     public MusicPlayerScreen() {
         super(Component.literal("Music Streamer"));
@@ -76,6 +80,22 @@ public class MusicPlayerScreen extends Screen {
         playlistWidget = new PlaylistWidget(panelX + 12, playlistY, PANEL_WIDTH - 24, playlistHeight, this.font, this::onTrackChosen);
         playlistWidget.setTracks(currentPlaylist);
         addRenderableWidget(playlistWidget);
+
+        // プレイリスト管理ボタン
+        addRenderableWidget(Button.builder(Component.literal("プレイリスト管理"), b ->
+                this.minecraft.setScreen(new PlaylistManagerScreen(this))
+        ).bounds(panelX + 12, panelY + PANEL_HEIGHT - 20, 100, 16).build());
+
+        // 保留中のURLがあれば自動ロード
+        if (pendingUrl != null) {
+            playlistUrlInput.setValue(pendingUrl);
+            onLoadClicked();
+            pendingUrl = null;
+        }
+        if (pendingSavedUrls != null) {
+            loadSavedUrls(pendingSavedUrls);
+            pendingSavedUrls = null;
+        }
     }
 
     private void onLoadClicked() {
@@ -183,5 +203,40 @@ public class MusicPlayerScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    public void setPlaylistUrl(String url) {
+        this.pendingUrl = url;
+    }
+
+    public void setPlaylistUrls(List<SavedUrl> savedUrls) {
+        this.pendingSavedUrls = savedUrls;
+    }
+
+    private void loadSavedUrls(List<SavedUrl> savedUrls) {
+        statusMessage = "読み込み中...";
+        Thread resolveThread = new Thread(() -> {
+            List<TrackInfo> tracks = new ArrayList<>();
+            for (SavedUrl savedUrl : savedUrls) {
+                try {
+                    List<TrackInfo> urlTracks = MusicStreamerMod.resolver.resolvePlaylist(savedUrl.url());
+                    tracks.addAll(urlTracks);
+                } catch (Exception e) {
+                    MusicStreamerMod.LOGGER.error("Failed to resolve URL: {}", savedUrl.url(), e);
+                }
+            }
+            List<TrackInfo> finalTracks = tracks;
+            Minecraft.getInstance().execute(() -> {
+                currentPlaylist = finalTracks;
+                playlistWidget.setTracks(finalTracks);
+                statusMessage = finalTracks.size() + "曲読み込み完了";
+                if (!finalTracks.isEmpty()) {
+                    engine.play(finalTracks.get(0));
+                    playPauseButton.setMessage(Component.literal("Pause"));
+                }
+            });
+        }, "musicstreamer-load-saved");
+        resolveThread.setDaemon(true);
+        resolveThread.start();
     }
 }
