@@ -99,7 +99,11 @@ public class MusicPlayerScreen extends Screen {
             } catch (Exception e) {
                 MusicStreamerMod.LOGGER.error("Failed to resolve playlist: {}", url, e);
                 Minecraft.getInstance().execute(() -> {
-                    statusMessage = "読み込み失敗: " + e.getMessage();
+                    if (e.getMessage() != null && e.getMessage().contains("Cannot run program")) {
+                        statusMessage = "yt-dlpが見つかりません。config/musicstreamer.json でパスを設定してください";
+                    } else {
+                        statusMessage = "読み込み失敗: " + e.getMessage();
+                    }
                     loadButton.active = true;
                 });
             }

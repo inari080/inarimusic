@@ -9,6 +9,9 @@
 	"entrypoints": {
 		"client": [
 			"com.inari.musicstreamer.MusicStreamerMod"
+		],
+		"themedgui:addon": [
+			"com.inari.musicstreamer.MusicStreamerThemedGuiAddon"
 		]
 	},
 	"depends": {
@@ -17,6 +20,6 @@
 		"java": ">=25"
 	},
 	"suggests": {
-		"themedguimod": "*"
+		"themedgui": "*"
 	}
 }

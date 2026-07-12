@@ -28,12 +28,17 @@ public class MusicStreamerMod implements ClientModInitializer {
 
     private static KeyMapping openScreenKey;
 
+    public static MusicStreamerConfig config;
+
     @Override
     public void onInitializeClient() {
-        THEMED_GUI_PRESENT = FabricLoader.getInstance().isModLoaded("themedgui");        LOGGER.info("themedguimod present: {}", THEMED_GUI_PRESENT);
+        THEMED_GUI_PRESENT = FabricLoader.getInstance().isModLoaded("themedgui");
+        LOGGER.info("themedgui present: {}", THEMED_GUI_PRESENT);
 
-        resolver = new YtDlpResolver("yt-dlp");
-        audioEngine = new AudioStreamEngine(resolver, "ffmpeg");
+        config = MusicStreamerConfig.load();
+
+        resolver = new YtDlpResolver(config.ytDlpPath);
+        audioEngine = new AudioStreamEngine(resolver, config.ffmpegPath);
         audioEngine.setOnError(msg -> LOGGER.warn("AudioStreamEngine error: {}", msg));
 
         // KeyMappingHelperのメソッド名も26.1でregisterKeyMappingに変更
