@@ -26,7 +26,7 @@ public class MusicStreamerMod implements ClientModInitializer {
     private static final KeyMapping.Category CATEGORY =
             KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "category"));
 
-    private static KeyMapping openScreenKey;
+    public static KeyMapping openScreenKey;
 
     public static MusicStreamerConfig config;
 

@@ -3,6 +3,8 @@ package com.inari.musicstreamer;
 import com.example.themedgui.client.api.AddonRegistration;
 import com.example.themedgui.client.api.ThemedGuiAddon;
 import com.inari.musicstreamer.gui.MusicPlayerScreen;
+import com.inari.musicstreamer.gui.MusicStreamerPathsScreen;
+import com.inari.musicstreamer.gui.MusicStreamerKeybindScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.options.controls.KeyBindsScreen;
 
@@ -14,9 +16,12 @@ public class MusicStreamerThemedGuiAddon implements ThemedGuiAddon {
 
         CONFIG.openKeyBinds = () -> {
             Minecraft client = Minecraft.getInstance();
-            // lastScreenに現在の画面(ハブの設定画面)を渡すので、
-            // キーバインド画面の「完了」を押すと元の設定画面に戻る
-            client.setScreen(new KeyBindsScreen(client.screen, client.options));
+            client.setScreen(new MusicStreamerKeybindScreen(client.screen)); // KeyBindsScreenから変更
+        };
+
+        CONFIG.openPaths = () -> {
+            Minecraft client = Minecraft.getInstance();
+            client.setScreen(new MusicStreamerPathsScreen(client.screen));
         };
     }
 
