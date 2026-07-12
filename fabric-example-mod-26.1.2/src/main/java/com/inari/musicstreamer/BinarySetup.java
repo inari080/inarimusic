@@ -96,26 +96,29 @@ public final class BinarySetup {
     }
 
     /** ffmpeg (Windows専用、静的ビルドzipを展開してffmpeg.exeを取り出す)。 */
-    private static String downloadFfmpegWindows() throws IOException, InterruptedException {
+    public static String downloadFfmpegWindows() throws IOException, InterruptedException {
         Files.createDirectories(BIN_DIR);
         Path zipPath = BIN_DIR.resolve("ffmpeg-essentials.zip");
         downloadFile("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip", zipPath);
 
         Path exeDest = BIN_DIR.resolve("ffmpeg.exe");
         boolean found = false;
-        try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(zipPath))) {
-            ZipEntry entry;
-            while ((entry = zis.getNextEntry()) != null) {
-                if (entry.getName().replace('\\', '/').endsWith("/bin/ffmpeg.exe")) {
-                    Files.copy(zis, exeDest, StandardCopyOption.REPLACE_EXISTING);
-                    found = true;
-                    break;
+        try {
+            try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(zipPath))) {
+                ZipEntry entry;
+                while ((entry = zis.getNextEntry()) != null) {
+                    if (entry.getName().replace('\\', '/').endsWith("/bin/ffmpeg.exe")) {
+                        Files.copy(zis, exeDest, StandardCopyOption.REPLACE_EXISTING);
+                        found = true;
+                        break;
+                    }
                 }
             }
+        } finally {
+            Files.deleteIfExists(zipPath); // 成功・失敗・例外いずれでも必ずzipを削除する
         }
-        Files.deleteIfExists(zipPath);
         if (!found) {
-            throw new IOException("zip内にffmpeg.exeが見つかりませんでした。");
+            throw new IOException("zip内にffmpeg.exeが見つかりませんでした(配布元の構成が変わった可能性があります)");
         }
         return exeDest.toAbsolutePath().toString();
     }
@@ -187,12 +190,21 @@ public final class BinarySetup {
 
     private static void downloadFile(String url, Path dest) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .header("User-Agent", "MusicStreamerMod")
+                // ブラウザからのアクセスに見せかけないと、gyan.dev等が直リンクを拒否することがある
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                        + "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
                 .GET()
                 .build();
         HttpResponse<Path> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofFile(dest));
         if (response.statusCode() / 100 != 2) {
+            Files.deleteIfExists(dest);
             throw new IOException("ダウンロード失敗 (HTTP " + response.statusCode() + "): " + url);
+        }
+        long size = Files.size(dest);
+        if (size < 1_000_000) { // 1MB未満はエラーページ等の誤取得とみなす
+            Files.deleteIfExists(dest);
+            throw new IOException("ダウンロードしたファイルが小さすぎます(" + size
+                    + "バイト)。配布元がブロックしている可能性があります: " + url);
         }
     }
 }

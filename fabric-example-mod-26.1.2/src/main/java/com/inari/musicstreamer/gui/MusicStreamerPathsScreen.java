@@ -105,32 +105,29 @@ public class MusicStreamerPathsScreen extends Screen {
             boolean finalFfmpegSkipped = ffmpegSkipped;
 
             client.execute(() -> {
-                // 処理が終わったのでボタンを再度有効化
-                if (setupButton != null) {
-                    setupButton.active = true;
-                }
+                if (finalYtDlp != null) ytDlpBox.setValue(finalYtDlp);
+                if (finalFfmpeg != null) ffmpegBox.setValue(finalFfmpeg);
+
+                // 成功した分だけ、その場でconfigに保存して反映する(片方失敗しても、成功した方は失われない)
+                MusicStreamerConfig config = MusicStreamerMod.config;
+                config.ytDlpPath = ytDlpBox.getValue().trim();
+                config.ffmpegPath = ffmpegBox.getValue().trim();
+                config.save();
+                applyConfig(config);
 
                 if (finalError != null) {
                     statusText = finalError;
+                } else if (finalYtDlpSkipped && (finalFfmpegSkipped || !BinarySetup.isWindows())) {
+                    statusText = "既に両方とも利用可能です。変更はありません";
                 } else {
-                    if (finalYtDlp != null) ytDlpBox.setValue(finalYtDlp);
-                    if (finalFfmpeg != null) ffmpegBox.setValue(finalFfmpeg);
-
-                    if (finalYtDlpSkipped && finalFfmpegSkipped) {
-                        statusText = "既に両方とも利用可能です。変更はありません";
-                    } else {
-                        StringBuilder sb = new StringBuilder("完了しました。");
-                        sb.append(finalYtDlpSkipped ? "yt-dlp: 既存を利用 / " : "yt-dlp: 新規取得 / ");
+                    StringBuilder sb = new StringBuilder("完了しました。");
+                    sb.append(finalYtDlpSkipped ? "yt-dlp: 既存を利用 / " : "yt-dlp: 新規取得 / ");
+                    if (BinarySetup.isWindows()) {
                         sb.append(finalFfmpegSkipped ? "ffmpeg: 既存を利用" : "ffmpeg: 新規取得");
-                        statusText = sb.toString();
+                    } else {
+                        sb.append("ffmpeg: 手動インストールが必要です");
                     }
-
-                    // 成功時は自動でコンフィグに即時適用
-                    MusicStreamerConfig config = MusicStreamerMod.config;
-                    config.ytDlpPath = ytDlpBox.getValue().trim();
-                    config.ffmpegPath = ffmpegBox.getValue().trim();
-                    config.save();
-                    applyConfig(config);
+                    statusText = sb.toString();
                 }
             });
         }, "musicstreamer-binary-setup");
