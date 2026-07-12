@@ -53,8 +53,12 @@ public final class BinarySetup {
 
     public static String downloadFfmpegWindows(IntConsumer onProgress) throws IOException, InterruptedException {
         Files.createDirectories(BIN_DIR);
-        Path zipPath = BIN_DIR.resolve("ffmpeg-essentials.zip");
-        downloadFile("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip", zipPath, onProgress);
+        Path zipPath = BIN_DIR.resolve("ffmpeg.zip");
+        // gyan.dev(Cloudflareのボット判定でJavaのHttpClientがブロックされる)ではなく
+        // GitHub Releases経由で取得する
+        downloadFile(
+                "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip",
+                zipPath, onProgress);
 
         Path exeDest = BIN_DIR.resolve("ffmpeg.exe");
         boolean found = false;
@@ -123,6 +127,7 @@ public final class BinarySetup {
         long total = response.headers().firstValueAsLong("Content-Length").orElse(-1);
         long downloaded = 0;
         int lastPercent = -1;
+        long lastLoggedMb = -1;
 
         try (InputStream in = response.body();
              OutputStream out = Files.newOutputStream(dest)) {
@@ -131,18 +136,29 @@ public final class BinarySetup {
             while ((read = in.read(buffer)) != -1) {
                 out.write(buffer, 0, read);
                 downloaded += read;
-                if (total > 0 && onProgress != null) {
+
+                if (total > 0) {
+                    // 通常ケース: Content-Lengthがある
                     int percent = (int) (downloaded * 100 / total);
-                    if (percent != lastPercent) {
+                    if (percent != lastPercent && onProgress != null) {
                         lastPercent = percent;
                         onProgress.accept(percent);
+                    }
+                } else {
+                    // Content-Lengthが無い(chunked)ケース: MB単位で"動いてる感"だけ出す
+                    long mb = downloaded / (1024 * 1024);
+                    if (mb != lastLoggedMb) {
+                        lastLoggedMb = mb;
+                        System.out.println("[BinarySetup] downloading... " + mb + " MB (size unknown)");
+                        // 進捗%が出せないので、暫定的に0〜99の範囲で「動いている」ことだけ示す例:
+                        if (onProgress != null) onProgress.accept((int) Math.min(99, mb)); // MB=%と仮に見なす簡易表示
                     }
                 }
             }
         }
 
         long size = Files.size(dest);
-        if (size < 1_000_000) { // 1MB未満はエラーページ等の誤取得とみなす
+        if (size < 1_000_000) {
             Files.deleteIfExists(dest);
             throw new IOException("ダウンロードしたファイルが小さすぎます(" + size
                     + "バイト)。配布元がブロックしている可能性があります: " + url);

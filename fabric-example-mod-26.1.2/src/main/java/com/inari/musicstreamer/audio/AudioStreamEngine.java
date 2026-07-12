@@ -136,24 +136,23 @@ public class AudioStreamEngine {
         line.start();
 
         InputStream pcmIn = ffmpegProcess.getInputStream();
-        pumpThread = new Thread(() -> pumpLoop(pcmIn), "musicstreamer-pump");
+        Process procRef = ffmpegProcess; // pumpLoop内で参照するためローカルに固定
+        pumpThread = new Thread(() -> pumpLoop(pcmIn, procRef), "musicstreamer-pump");
         pumpThread.setDaemon(true);
         pumpThread.start();
 
-        // ffmpegのstderrはエラー診断用に別スレッドで読み捨て/ログ出力しておく(溜まるとプロセスが止まるため必須)
         Thread errDrain = new Thread(() -> drainStream(ffmpegProcess.getErrorStream()), "musicstreamer-ffmpeg-stderr");
         errDrain.setDaemon(true);
         errDrain.start();
     }
 
-    private void pumpLoop(InputStream pcmIn) {
+    private void pumpLoop(InputStream pcmIn, Process procRef) {
         byte[] buffer = new byte[READ_CHUNK_BYTES];
+        boolean wroteAnyData = false;
         try {
             int read;
             while ((read = pcmIn.read(buffer)) != -1) {
                 if (state == PlaybackState.PAUSED) {
-                    // pause中はラインに書かない。ffmpeg側はOSパイプが埋まるとブロックし、事実上デコードも止まる。
-                    // ただし読み取り自体は続けないとブロッキングが崩れるため、短いスリープで待機。
                     try {
                         Thread.sleep(50);
                     } catch (InterruptedException ignored) {
@@ -163,6 +162,7 @@ public class AudioStreamEngine {
                 if (line == null || !line.isOpen()) break;
                 line.write(buffer, 0, read);
                 bytesConsumed += read;
+                wroteAnyData = true;
                 pushToVisualRing(buffer, read);
             }
         } catch (IOException e) {
@@ -170,18 +170,32 @@ public class AudioStreamEngine {
                 LOGGER.warn("PCM pump loop ended with error", e);
             }
         } finally {
-            if (state == PlaybackState.PLAYING) {
-                // ストリーム終端(曲終わり)
+            if (!wroteAnyData) {
+                // 1バイトも再生できずに終わった = ffmpegが即死した可能性が高い
+                int exitCode = -1;
+                try {
+                    exitCode = procRef.waitFor(500, java.util.concurrent.TimeUnit.MILLISECONDS)
+                            ? procRef.exitValue() : -1;
+                } catch (InterruptedException ignored) {
+                }
+                LOGGER.error("No audio data was produced (ffmpeg exit code: {})", exitCode);
+                setState(PlaybackState.ERROR);
+                if (onError != null) {
+                    onError.accept("音声データが取得できませんでした (ffmpeg exit: " + exitCode + ")");
+                }
+            } else if (state == PlaybackState.PLAYING) {
                 setState(PlaybackState.STOPPED);
             }
         }
     }
 
+
     private void drainStream(InputStream err) {
-        try {
-            byte[] buf = new byte[1024];
-            while (err.read(buf) != -1) {
-                // 進捗ログは基本捨てる。デバッグ時はここでLOGGER.debugする。
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                new java.io.InputStreamReader(err, java.nio.charset.StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                LOGGER.warn("[ffmpeg] {}", line);
             }
         } catch (IOException ignored) {
         }
